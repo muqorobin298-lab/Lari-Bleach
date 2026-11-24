@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Lari Bleach | Robin</title>
+  <meta name="description" content="Game lari ala dinosaurus Chrome bertema Bleach. Lompati dan tunduki rintangan sampai BANKAI!">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    html { overflow-x: hidden; background: #3b1d5e; }
+    :root { --accent: #ff6a00; --spark: #ffcf8a; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', Arial, sans-serif; min-height: 100vh;
+      background: #c2410c;
+      background: linear-gradient(to top,#ff7b3d,#c2410c 40%,#3b1d5e 100%) fixed;
+      color: #f5f5f5; overflow-x: hidden;
+    }
+
+    /* ===== LATAR ANIME ===== */
+    #scene { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; }
+    .layer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.2s ease; }
+    .layer.aktif { opacity: 1; }
+    .kanji { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 45vw; font-weight: 900; color: #fff; opacity: 0.06; white-space: nowrap; }
+    .orb { position: absolute; top: 9%; right: 10%; width: 22vw; height: 22vw; max-width: 260px; max-height: 260px; min-width: 120px; min-height: 120px; border-radius: 50%; }
+    .city { position: absolute; bottom: 0; left: 0; width: 100%; height: 36vh; }
+    #sparks { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .spark { position: absolute; bottom: -10px; border-radius: 50%; background: var(--spark); box-shadow: 0 0 8px var(--spark); opacity: 0; animation: naik linear infinite; }
+    @keyframes naik {
+      0%   { transform: translateY(0) translateX(0); opacity: 0; }
+      10%  { opacity: 0.9; }
+      100% { transform: translateY(-105vh) translateX(40px); opacity: 0; }
+    }
+
+    /* ===== HALAMAN ===== */
+    .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 36px 20px 30px; }
+    .lokasi { font-family: 'Anton', Impact, sans-serif; letter-spacing: 3px; font-size: 14px; color: var(--accent); text-transform: uppercase; transition: color 1s; min-height: 20px; }
+    h1 {
+      font-family: 'Anton', Impact, sans-serif; font-size: clamp(52px, 12vw, 120px); line-height: 0.95;
+      text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 4px 20px rgba(0,0,0,0.6); margin: 6px 0 12px;
+    }
+    h1 span { color: var(--accent); transition: color 1s; }
+    .bio { max-width: 560px; line-height: 1.7; margin-bottom: 20px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+
+    .papan { background: rgba(8,8,18,0.55); border-left: 6px solid var(--accent); transition: border-color 1s; }
+    canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none; }
+
+    .kontrol { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+    .btn {
+      font-family: 'Anton', Impact, sans-serif; font-size: 18px; letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer; border: 3px solid #f5f5f5; background: rgba(0,0,0,0.4); color: #f5f5f5; padding: 12px 24px;
+      transition: background 0.2s, color 0.2s, transform 0.2s; touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    .btn:hover { background: #f5f5f5; color: #000; }
+    .btn:active { transform: translateY(2px); }
+    .btn.main { background: var(--accent); border-color: var(--accent); color: #000; transition: background 1s, border-color 1s; }
+    .btn.main:hover { background: #fff; border-color: #fff; }
+    .info { margin-top: 14px; font-size: 13px; letter-spacing: 1px; opacity: 0.85; line-height: 1.7; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+    footer { position: relative; z-index: 1; text-align: center; padding: 10px 0 30px; font-size: 12px; letter-spacing: 2px; opacity: 0.7; }
+    @media (max-width: 560px) { .btn { flex: 1; padding: 14px 10px; font-size: 16px; } }
+    @media (prefers-reduced-motion: reduce) { .spark { animation: none; } }
+  </style>
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="sparks"></div>
+
+  <main class="wrap">
+    <p class="lokasi" id="lokasi"></p>
+    <h1>Lari <span>Bleach</span></h1>
+    <p class="bio">Lompati tiang batu dan tunduki roh terbang. Makin jauh kamu lari, latar makin berubah sampai BANKAI!</p>
+
+    <div class="papan"><canvas id="c" aria-label="Game Lari Bleach"></canvas></div>
+
+    <div class="kontrol">
+      <button class="btn main" id="btnLompat" type="button">Lompat</button>
+      <button class="btn" id="btnTunduk" type="button">Tunduk</button>
+      <button class="btn" id="btnSuara" type="button">Suara: On</button>
+    </div>
+    <p class="info">SPASI / ↑ = LOMPAT &nbsp;·&nbsp; ↓ = TUNDUK (TAHAN) &nbsp;·&nbsp; M = SUARA &nbsp;·&nbsp; DI HP: KETUK LAYAR ATAU PAKAI TOMBOL</p>
+  </main>
+
+  <footer>© ROBIN · DIBUAT DENGAN SEMANGAT SOUL REAPER</footer>
+
+  <script>
+    // ===== TEMA LATAR (sama seperti portofolio) =====
+    const tema = {
+      senja:  { nama: "Senja Karakura", kanji: "代行", g: "linear-gradient(to top,#ff7b3d,#c2410c 40%,#3b1d5e 100%)", orb: "radial-gradient(circle,#fff3c4 0%,#ffd27a 60%,#ff9a3c 100%)", glow: "#ffb347", city: "#1a0a12", accent: "#ff6a00", spark: "#ffcf8a" },
+      malam:  { nama: "Malam Bersalju", kanji: "月", g: "linear-gradient(to top,#2a4a7a,#10234a 50%,#030818 100%)", orb: "radial-gradient(circle,#ffffff 0%,#dbeafe 70%,#a5c8ff 100%)", glow: "#bcd8ff", city: "#050b1a", accent: "#4da6ff", spark: "#d6e8ff" },
+      sakura: { nama: "Hujan Sakura", kanji: "桜", g: "linear-gradient(to top,#ff9ec4,#a8326b 45%,#2a0b2e 100%)", orb: "radial-gradient(circle,#fff0f6 0%,#ffc2da 70%,#ff8fba 100%)", glow: "#ffb3d1", city: "#1f0720", accent: "#ff5c9e", spark: "#ffd0e3" },
+      es:     { nama: "Istana Es", kanji: "氷", g: "linear-gradient(to top,#b8ecff,#2a8fc7 45%,#062a4d 100%)", orb: "radial-gradient(circle,#ffffff 0%,#e0f7ff 70%,#9fe3ff 100%)", glow: "#aeeaff", city: "#04182e", accent: "#38d4ff", spark: "#ffffff" },
+      soul:   { nama: "Soul Society", kanji: "死神", g: "linear-gradient(to top,#3b1d5e,#1a1040 45%,#050510 100%)", orb: "radial-gradient(circle,#fff6dc 0%,#fff1d0 70%,#ffe2a0 100%)", glow: "#fff1d0", city: "#000000", accent: "#a855f7", spark: "#e0c8ff" },
+      bankai: { nama: "BANKAI!", kanji: "卍解", g: "linear-gradient(to top,#ff7b3d,#7a0b1b 45%,#2b0008 100%)", orb: "radial-gradient(circle,#fffbe0 0%,#ffe9b0 60%,#ffd400 100%)", glow: "#ffd400", city: "#1a0004", accent: "#ffd400", spark: "#ffe28a" }
+    };
+    const urutan = Object.keys(tema);
+
+    const kota = `<svg class="city" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" fill="CITYCOLOR">
+      <rect x="0" y="270" width="1200" height="30"/>
+      <path d="M90 270 V190 H130 V270 Z"/><path d="M70 195 Q110 185 150 195 L135 170 H85 Z"/><path d="M85 170 Q110 160 135 170 L125 150 H95 Z"/><path d="M95 150 L110 125 L125 150 Z"/>
+      <path d="M200 270 V215 H420 V270 Z"/><path d="M180 220 Q310 195 440 220 L410 200 H210 Z"/>
+      <path d="M520 270 V160 H580 V270 Z"/><path d="M495 165 Q550 150 605 165 L585 135 H515 Z"/><path d="M512 135 Q550 120 588 135 L575 108 H525 Z"/><path d="M525 108 Q550 95 575 108 L562 82 H538 Z"/><path d="M540 82 L550 50 L560 82 Z"/>
+      <path d="M680 270 V220 H860 V270 Z"/><path d="M660 225 Q770 200 880 225 L850 205 H690 Z"/>
+      <path d="M930 270 V185 H980 V270 Z"/><path d="M910 190 Q955 178 1000 190 L985 165 H925 Z"/><path d="M925 165 Q955 152 985 165 L975 140 H935 Z"/><path d="M938 140 L955 112 L972 140 Z"/>
+      <path d="M1060 270 V225 H1200 V270 Z"/><path d="M1045 230 Q1130 208 1215 230 L1190 212 H1070 Z"/>
+    </svg>`;
+
+    const scene = document.getElementById("scene");
+    const layers = {};
+    urutan.forEach(k => {
+      const t = tema[k];
+      const d = document.createElement("div");
+      d.className = "layer";
+      d.style.background = t.g;
+      d.innerHTML =
+        '<div class="kanji">' + t.kanji + '</div>' +
+        '<div class="orb" style="background:' + t.orb + ';box-shadow:0 0 40px ' + t.glow + ',0 0 110px ' + t.glow + '"></div>' +
+        kota.replace("CITYCOLOR", t.city);
+      scene.appendChild(d);
+      layers[k] = d;
+    });
+
+    const sparks = document.getElementById("sparks");
+    for (let n = 0; n < 30; n++) {
+      const s = document.createElement("div");
+      s.className = "spark";
+      const size = 2 + Math.random() * 4;
+      s.style.width = s.style.height = size + "px";
+      s.style.left = Math.random() * 100 + "%";
+      s.style.animationDuration = (6 + Math.random() * 8) + "s";
+      s.style.animationDelay = (Math.random() * 10) + "s";
+      sparks.appendChild(s);
+    }
+
+    let aktif = "";
+    function gantiTema(k) {
+      if (k === aktif) return;
+      aktif = k;
+      const t = tema[k];
+      urutan.forEach(n => layers[n].classList.toggle("aktif", n === k));
+      document.documentElement.style.setProperty("--accent", t.accent);
+      document.documentElement.style.setProperty("--spark", t.spark);
+      document.getElementById("lokasi").textContent = "// " + t.nama;
+    }
+
+    // ===== SUARA =====
+    let ac = null, suara = true;
+    function siapkanAudio() {
+      if (ac) return;
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+    }
+    function bunyi(f, d, tipe, f2) {
+      if (!suara || !ac) return;
+      try {
+        const o = ac.createOscillator(), g = ac.createGain(), t0 = ac.currentTime;
+        o.type = tipe || "square";
+        o.frequency.setValueAtTime(f, t0);
+        if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+        g.gain.setValueAtTime(0.07, t0);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+        o.connect(g); g.connect(ac.destination);
+        o.start(); o.stop(t0 + d);
+      } catch (e) { /* abaikan */ }
+    }
+    const btnSuara = document.getElementById("btnSuara");
+    function ubahSuara() {
+      suara = !suara;
+      btnSuara.textContent = "Suara: " + (suara ? "On" : "Off");
+    }
+
+    // ===== GAME =====
+    const cv = document.getElementById("c");
+    const ctx = cv.getContext("2d");
+    const W = 800, H = 300, G = 250, S = 2;   // lebar, tinggi, garis tanah, skala ketajaman
+    cv.width = W * S; cv.height = H * S;
+    ctx.setTransform(S, 0, 0, S, 0, 0);
+
+    const KUNCI_HI = "lariBleachRekor";
+    let hi = 0;
+    try { hi = parseInt(localStorage.getItem(KUNCI_HI), 10) || 0; } catch (e) { hi = 0; }
+
+    let state = "siap";            // siap | main | mati
+    let speed, skor, geser, runT, obs, jarakBerikut, p, mTerakhir, toast, rekorBaru, matiWaktu = 0;
+    let tundukTekan = false;
+
+    function reset() {
+      speed = 6; skor = 0; geser = 0; runT = 0; obs = []; jarakBerikut = 420;
+      mTerakhir = 0; toast = null; rekorBaru = false;
+      p = { x: 90, y: G - 56, vy: 0, w: 34, h: 56, tanah: true };
+      gantiTema("senja");
+    }
+    reset();
+
+    function mulai() { reset(); state = "main"; }
+
+    function mati() {
+      state = "mati";
+      matiWaktu = performance.now();
+      const s = Math.floor(skor);
+      if (s > hi) {
+        hi = s; rekorBaru = true;
+        try { localStorage.setItem(KUNCI_HI, String(hi)); } catch (e) { /* abaikan */ }
+      }
+      bunyi(320, 0.45, "sawtooth", 60);
+    }
+
+    function spawn() {
+      if (skor > 200 && Math.random() < 0.28) {
+        obs.push({ t: "terbang", x: W + 20, y: G - 82, by: G - 82, w: 36, h: 36, fase: Math.random() * 6 });
+        return;
+      }
+      const maks = skor > 150 ? 3 : 1;
+      const n = 1 + Math.floor(Math.random() * maks);
+      obs.push({ t: "tiang", x: W + 20, n: n, w: n * 24 + (n - 1) * 6, tinggi: 38 + Math.random() * 32 });
+    }
+
+    function lompat() {
+      siapkanAudio();
+      if (state === "siap") { mulai(); return; }
+      if (state === "mati") {
+        if (performance.now() - matiWaktu > 400) mulai();
+        return;
+      }
+      if (p.tanah) {
+        p.vy = -15.5; p.tanah = false; p.y -= 1;
+        bunyi(520, 0.09, "square", 760);
+      }
+    }
+
+    function bentrok(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function update(dt) {
+      speed = Math.min(15, speed + 0.0012 * dt);
+      skor += speed * dt * 0.07;
+      geser += speed * dt;
+      runT += speed * dt * 0.12;
+
+      // tema berganti sesuai skor
+      const idx = Math.min(urutan.length - 1, Math.floor(skor / 300));
+      if (urutan[idx] !== aktif) {
+        gantiTema(urutan[idx]);
+        toast = { txt: idx === urutan.length - 1 ? "BANKAI!" : tema[urutan[idx]].nama, t: 110 };
+      }
+      const m = Math.floor(skor / 100);
+      if (m > mTerakhir) { mTerakhir = m; bunyi(880, 0.12, "square"); }
+
+      // pemain
+      const tunduk = tundukTekan && p.tanah;
+      p.h = tunduk ? 30 : 56;
+      p.w = tunduk ? 46 : 34;
+      if (p.tanah) {
+        p.y = G - p.h;
+      } else {
+        p.vy += (tundukTekan ? 2 : 0.85) * dt;
+        p.y += p.vy * dt;
+        if (p.y >= G - p.h) { p.y = G - p.h; p.vy = 0; p.tanah = true; }
+      }
+
+      // rintangan
+      jarakBerikut -= speed * dt;
+      if (jarakBerikut <= 0) {
+        spawn();
+        jarakBerikut = 260 + Math.random() * 260 + speed * 28;
+      }
+      obs.forEach(o => {
+        o.x -= speed * dt;
+        if (o.t === "terbang") { o.fase += 0.15 * dt; o.by = o.y + Math.sin(o.fase) * 4; }
+      });
+      obs = obs.filter(o => o.x + o.w > -60);
+
+      // tabrakan
+      const a = { x: p.x + 6, y: p.y + 4, w: p.w - 12, h: p.h - 6 };
+      for (const o of obs) {
+        const b = o.t === "terbang"
+          ? { x: o.x + 5, y: o.by + 5, w: o.w - 10, h: o.h - 10 }
+          : { x: o.x + 3, y: G - o.tinggi + 4, w: o.w - 6, h: o.tinggi - 4 };
+        if (bentrok(a, b)) { mati(); break; }
+      }
+      if (toast) { toast.t -= dt; if (toast.t <= 0) toast = null; }
+    }
+
+    // ===== GAMBAR =====
+    function teks(str, x, y, ukuran, warna, rata) {
+      ctx.font = ukuran + "px 'Anton', Impact, sans-serif";
+      ctx.textAlign = rata || "center";
+      ctx.fillStyle = warna;
+      ctx.fillText(str, x, y);
+    }
+    const pad = n => String(Math.floor(n)).padStart(5, "0");
+
+    function gambarPemain() {
+      const acc = tema[aktif].accent;
+      const x = p.x, y = p.y;
+      const ayun = p.tanah ? Math.sin(runT) : 0;
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      if (p.h === 30 && p.tanah) {
+        // posisi tunduk: tubuh mendatar
+        ctx.strokeStyle = acc; ctx.lineWidth = 4;                       // selendang
+        ctx.beginPath(); ctx.moveTo(x + 30, y + 8); ctx.lineTo(x + 6, y + 4 + Math.sin(runT * 2) * 3); ctx.stroke();
+        ctx.strokeStyle = "#e8e8e8"; ctx.lineWidth = 2.5;                // pedang di punggung
+        ctx.beginPath(); ctx.moveTo(x + 2, y + 12); ctx.lineTo(x + 34, y + 5); ctx.stroke();
+        ctx.fillStyle = "#0b0b14"; ctx.strokeStyle = "#0b0b14";
+        ctx.beginPath(); ctx.ellipse(x + 20, y + 18, 20, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 38, y + 12, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = 6;                                               // kaki
+        ctx.beginPath(); ctx.moveTo(x + 12, y + 24); ctx.lineTo(x + 4 + Math.sin(runT) * 6, y + 30); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 22, y + 24); ctx.lineTo(x + 24 - Math.sin(runT) * 6, y + 30); ctx.stroke();
+        ctx.fillStyle = acc; ctx.fillRect(x + 38, y + 9, 8, 3);
+      } else {
+        ctx.strokeStyle = acc; ctx.lineWidth = 5;                        // selendang
+        ctx.beginPath(); ctx.moveTo(x + 14, y + 19); ctx.quadraticCurveTo(x - 4, y + 14 + Math.sin(runT * 2) * 5, x - 16, y + 20 + Math.sin(runT * 2 + 1) * 6); ctx.stroke();
+        ctx.save();                                                      // pedang di punggung
+        ctx.shadowColor = acc; ctx.shadowBlur = 8;
+        ctx.strokeStyle = "#e8e8e8"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x + 22, y + 32); ctx.lineTo(x - 10, y - 2); ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = "#0b0b14"; ctx.strokeStyle = "#0b0b14";
+        ctx.lineWidth = 7;                                               // kaki
+        ctx.beginPath();
+        if (p.tanah) {
+          ctx.moveTo(x + 14, y + 40); ctx.lineTo(x + 14 + ayun * 11, y + 56);
+          ctx.moveTo(x + 22, y + 40); ctx.lineTo(x + 22 - ayun * 11, y + 56);
+        } else {
+          ctx.moveTo(x + 14, y + 40); ctx.lineTo(x + 8, y + 50);
+          ctx.moveTo(x + 22, y + 40); ctx.lineTo(x + 28, y + 48);
+        }
+        ctx.stroke();
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x + 9, y + 19, 18, 24, 4) : ctx.rect(x + 9, y + 19, 18, 24); ctx.fill();
+        ctx.lineWidth = 5;                                               // lengan
+        ctx.beginPath(); ctx.moveTo(x + 14, y + 24); ctx.lineTo(x + 24 + ayun * 3, y + 33 - ayun * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + 19, y + 9, 9, 0, Math.PI * 2); ctx.fill();   // kepala
+        ctx.fillStyle = acc; ctx.fillRect(x + 19, y + 6, 9, 3);
+      }
+      ctx.restore();
+    }
+
+    function gambarTiang(o) {
+      const acc = tema[aktif].accent;
+      for (let i = 0; i < o.n; i++) {
+        const px = o.x + i * 30, py = G - o.tinggi;
+        ctx.fillStyle = "#0b0b14";
+        ctx.fillRect(px, py, 24, o.tinggi);
+        ctx.fillRect(px - 3, py - 4, 30, 8);
+        ctx.strokeStyle = acc; ctx.lineWidth = 2;
+        ctx.strokeRect(px + 1, py + 1, 22, o.tinggi - 2);
+        ctx.fillStyle = acc;
+        ctx.fillRect(px - 3, py - 4, 30, 2);
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(px + 9, py + 14, 6, 12);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function gambarTerbang(o) {
+      const acc = tema[aktif].accent;
+      const cx = o.x + 18, cy = o.by + 18;
+      ctx.save();
+      ctx.globalAlpha = 0.7; ctx.fillStyle = acc;                        // ekor api
+      ctx.beginPath();
+      ctx.moveTo(cx + 10, cy - 10);
+      ctx.quadraticCurveTo(cx + 30, cy - 12 + Math.sin(o.fase * 2) * 6, cx + 52, cy + Math.sin(o.fase * 2 + 1) * 6);
+      ctx.quadraticCurveTo(cx + 30, cy + 12 + Math.sin(o.fase * 2) * 6, cx + 10, cy + 10);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.shadowColor = acc; ctx.shadowBlur = 12;
+      ctx.fillStyle = "#0b0b14"; ctx.strokeStyle = acc; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = acc;
+      ctx.fillRect(cx - 9, cy - 5, 7, 3);
+      ctx.fillRect(cx + 1, cy - 5, 7, 3);
+      ctx.restore();
+    }
+
+    function gambar() {
+      const acc = tema[aktif].accent;
+      ctx.clearRect(0, 0, W, H);
+
+      // tanah
+      ctx.fillStyle = "rgba(8,8,18,0.6)";
+      ctx.fillRect(0, G, W, H - G);
+      ctx.fillStyle = "#f5f5f5";
+      ctx.fillRect(0, G, W, 2);
+      ctx.fillStyle = acc; ctx.globalAlpha = 0.6;
+      for (let i = -1; i < 22; i++) {
+        const gx1 = i * 40 - (geser % 40), gx2 = i * 40 + 20 - ((geser * 1.0) % 40);
+        ctx.fillRect(gx1, G + 10, 14, 2);
+        ctx.fillRect(gx2, G + 24, 8, 2);
+      }
+      ctx.globalAlpha = 1;
+
+      obs.forEach(o => { if (o.t === "tiang") gambarTiang(o); else gambarTerbang(o); });
+      gambarPemain();
+
+      // skor
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 6;
+      teks("HI " + pad(hi) + "   " + pad(skor), W - 16, 34, 24, "#f5f5f5", "right");
+      if (toast) {
+        ctx.globalAlpha = Math.min(1, toast.t / 30);
+        teks(toast.txt, W / 2, 90, 38, acc, "center");
+      }
+      ctx.restore();
+
+      if (state === "siap") {
+        ctx.fillStyle = "rgba(8,8,18,0.55)"; ctx.fillRect(0, 0, W, H);
+        teks("TEKAN SPASI ATAU KETUK LAYAR", W / 2, 130, 34, "#f5f5f5");
+        teks("UNTUK MULAI LARI", W / 2, 170, 26, acc);
+      } else if (state === "mati") {
+        ctx.fillStyle = "rgba(8,8,18,0.6)"; ctx.fillRect(0, 0, W, H);
+        teks("GAME OVER", W / 2, 120, 62, acc);
+        teks("SKOR " + Math.floor(skor) + (rekorBaru ? "  ·  REKOR BARU!" : "  ·  REKOR " + hi), W / 2, 164, 26, "#f5f5f5");
+        teks("TEKAN SPASI ATAU KETUK UNTUK ULANG", W / 2, 210, 20, "#f5f5f5");
+      }
+    }
+
+    let waktuLalu = performance.now();
+    function loop(t) {
+      const dt = Math.max(0, Math.min(3, (t - waktuLalu) / 16.667));
+      waktuLalu = t;
+      if (state === "main") update(dt);
+      gambar();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // ===== KONTROL =====
+    window.addEventListener("keydown", e => {
+      if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+        e.preventDefault();
+        if (!e.repeat) lompat();
+      } else if (e.code === "ArrowDown" || e.code === "KeyS") {
+        e.preventDefault();
+        tundukTekan = true;
+      } else if (e.code === "KeyM") {
+        ubahSuara();
+      }
+    });
+    window.addEventListener("keyup", e => {
+      if (e.code === "ArrowDown" || e.code === "KeyS") tundukTekan = false;
+    });
+    cv.addEventListener("pointerdown", e => { e.preventDefault(); lompat(); });
+
+    const btnLompat = document.getElementById("btnLompat");
+    const btnTunduk = document.getElementById("btnTunduk");
+    btnLompat.addEventListener("pointerdown", e => { e.preventDefault(); lompat(); });
+    btnTunduk.addEventListener("pointerdown", e => { e.preventDefault(); siapkanAudio(); tundukTekan = true; });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(ev =>
+      btnTunduk.addEventListener(ev, () => { tundukTekan = false; })
+    );
+    btnSuara.addEventListener("click", ubahSuara);
+    window.addEventListener("blur", () => { tundukTekan = false; });
+
+    gantiTema("senja");
+  </script>
+</body>
+</html>
